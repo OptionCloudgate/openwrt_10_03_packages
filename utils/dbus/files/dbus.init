@@ -8,10 +8,10 @@ SERVICE_PID_FILE=/var/run/dbus.pid
 start() {
 	mkdir -m 0755 -p /var/lib/dbus
 	mkdir -m 0755 -p /var/run/dbus
-	[ -x /usr/bin/dbus-uuidgen ] && /usr/bin/dbus-uuidgen --ensure
-	service_start /usr/sbin/dbus-daemon --system
+	[ -x /rom/mnt/cust/usr/bin/dbus-uuidgen ] && /rom/mnt/cust/usr/bin/dbus-uuidgen --ensure
+	/rom/mnt/cust/usr/sbin/dbus-daemon --config-file=/rom/mnt/cust/etc/dbus-1/system.conf
 }
 
 stop() {
-	service_stop /usr/sbin/dbus-daemon && rm $SERVICE_PID_FILE
+	/rom/mnt/cust/usr/sbin/dbus-daemon && rm $SERVICE_PID_FILE
 }
