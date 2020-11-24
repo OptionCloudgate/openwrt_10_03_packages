@@ -4,13 +4,13 @@ START=61
 
 BIN=avahi-daemon
 DEFAULT=/etc/default/$BIN
-OPTIONS="-D"
+OPTIONS="-D -f /rom/mnt/cust/etc/avahi/avahi-daemon.conf"
 RUN_D=/var/run/$BIN
 
 start() {
 	[ -f $DEFAULT ] && . $DEFAULT
 	mkdir -p $RUN_D
-	$BIN $OPTIONS
+	/rom/mnt/cust/usr/sbin/$BIN $OPTIONS
 }
 
 stop() {
