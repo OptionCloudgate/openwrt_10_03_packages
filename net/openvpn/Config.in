@@ -31,11 +31,6 @@ config OPENVPN_DISABLE_SERVER
 	depends on PACKAGE_openvpn
 	default n
 
-config OPENVPN_DISABLE_EUREPHIA
-	bool "Disable support for the eurephia plug-in"
-	depends on PACKAGE_openvpn
-	default y
-
 config OPENVPN_DISABLE_MANAGEMENT
 	bool "Disable management server support"
 	depends on PACKAGE_openvpn
@@ -63,11 +58,6 @@ config OPENVPN_DISABLE_MULTIHOME
 
 config OPENVPN_DISABLE_PORT_SHARE
 	bool "Disable TCP server port-share support (--port-share)"
-	depends on PACKAGE_openvpn
-	default n
-
-config OPENVPN_ENABLE_PASSWORD_SAVE
-	bool "Allow --askpass and --auth-user-pass passwords to be read from a file"
 	depends on PACKAGE_openvpn
 	default n
 

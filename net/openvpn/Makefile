@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openvpn
-PKG_VERSION:=2.2.1
-PKG_RELEASE:=5
+PKG_VERSION:=2.4.9
+PKG_RELEASE:=6
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=http://swupdate.openvpn.net/community/releases @SF/openvpn
-PKG_MD5SUM:=500bee5449b29906150569aaf2eb2730
+PKG_SOURCE_URL:=https://swupdate.openvpn.org/community/releases
+PKG_MD5SUM:=52863fa9b98e5a3d7f8bec1d5785a2ba
 
 PKG_INSTALL:=1
 PKG_BUILD_PARALLEL:=1
@@ -38,29 +38,17 @@ define Package/openvpn/config
 	source "$(SOURCE)/Config.in"
 endef
 
-
-define Package/openvpn-easy-rsa
-  $(call Package/openvpn)
-  DEPENDS:=+openssl-util
-  TITLE:=Simple shell scripts to manage a Certificate Authority
-endef
-
-define Package/openvpn-easy-rsa/conffiles
-/etc/easy-rsa/keys/serial
-/etc/easy-rsa/keys/index.txt
-/etc/easy-rsa/vars
-endef
+CONFIGURE_VARS += \
+	IFCONFIG=/sbin/ifconfig \
+	ROUTE=/sbin/route \
+	IPROUTE=/usr/sbin/ip \
+	NETSTAT=/bin/netstat
 
 CONFIGURE_ARGS+= \
-	--with-ifconfig-path=/sbin/ifconfig \
-	--with-iproute-path=/usr/sbin/ip \
-	--with-route-path=/sbin/route \
 	--disable-debug \
 	--disable-plugins \
-	--disable-pthread \
 	--disable-selinux \
-	--disable-socks \
-	--enable-small
+	--enable-small \
 
 ifeq ($(CONFIG_OPENVPN_DISABLE_LZO),y)
 CONFIGURE_ARGS += \
@@ -90,11 +78,6 @@ endif
 ifeq ($(CONFIG_OPENVPN_DISABLE_SERVER),y)
 CONFIGURE_ARGS += \
 	--disable-server
-endif
-
-ifeq ($(CONFIG_OPENVPN_DISABLE_EUREPHIA),y)
-CONFIGURE_ARGS += \
-	--disable-eurephia
 endif
 
 ifeq ($(CONFIG_OPENVPN_DISABLE_MANAGEMENT),y)
@@ -127,11 +110,6 @@ CONFIGURE_ARGS += \
 	--disable-port-share
 endif
 
-ifeq ($(CONFIG_OPENVPN_ENABLE_PASSWORD_SAVE),y)
-CONFIGURE_ARGS += \
-	--enable-password-save
-endif
-
 ifeq ($(CONFIG_OPENVPN_DISABLE_DEF_AUTH),y)
 CONFIGURE_ARGS += \
 	--disable-def-auth
@@ -158,16 +136,4 @@ define Package/openvpn/install
 	$(INSTALL_DATA) files/openvpn.upgrade $(1)/lib/upgrade/keep.d/openvpn
 endef
 
-define Package/openvpn-easy-rsa/install
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(CP) $(PKG_BUILD_DIR)/easy-rsa/2.0/{build-*,clean-all,inherit-inter,list-crl,pkitool,revoke-full,sign-req,whichopensslcnf} $(1)/usr/sbin/
-	$(INSTALL_DIR) $(1)/etc/easy-rsa
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/easy-rsa/2.0/openssl-1.0.0.cnf $(1)/etc/easy-rsa/openssl-1.0.0.cnf
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/easy-rsa/2.0/vars $(1)/etc/easy-rsa/vars
-	$(INSTALL_DIR) $(1)/etc/easy-rsa/keys
-	$(INSTALL_DATA) files/easy-rsa.index $(1)/etc/easy-rsa/keys/index.txt
-	$(INSTALL_DATA) files/easy-rsa.serial $(1)/etc/easy-rsa/keys/serial
-endef
-
 $(eval $(call BuildPackage,openvpn))
-$(eval $(call BuildPackage,openvpn-easy-rsa))
