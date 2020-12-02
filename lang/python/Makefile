@@ -1,19 +1,23 @@
 #
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2015 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
+# sudo apt-get install libncurses5-dev libgdbm-dev libnss3-dev libssl-dev tk-dev
 #
 
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=python
-PKG_VERSION:=2.6.4
-PKG_RELEASE:=4
+# The file included below defines PYTHON_VERSION
+include ./files/python-package.mk
 
-PKG_SOURCE:=Python-$(PKG_VERSION).tar.bz2
-PKG_SOURCE_URL:=http://www.python.org/ftp/python/$(PKG_VERSION)/
-PKG_MD5SUM:=fee5408634a54e721a93531aba37f8c1
+PKG_NAME:=python
+PKG_VERSION:=$(PYTHON_VERSION).$(PYTHON_VERSION_MICRO)
+PKG_RELEASE:=1
+
+PKG_SOURCE:=Python-$(PKG_VERSION).tar.xz
+PKG_SOURCE_URL:=https://www.python.org/ftp/python/$(PKG_VERSION)
+PKG_MD5SUM:=57dffcee9cee8bb2ab5f82af1d8e9a69
 
 PKG_INSTALL:=1
 PKG_BUILD_PARALLEL:=1
@@ -23,10 +27,10 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/Python-$(PKG_VERSION)
 HOST_BUILD_DIR:=$(BUILD_DIR_HOST)/Python-$(PKG_VERSION)
 
 PKG_BUILD_DEPENDS:=python/host
+# HOST_BUILD_DEPENDS:=bzip2/host expat/host
 
 include $(INCLUDE_DIR)/host-build.mk
 include $(INCLUDE_DIR)/package.mk
--include $(if $(DUMP),,./files/python-package.mk)
 
 define Package/python/Default
   SUBMENU:=Python
@@ -34,6 +38,7 @@ define Package/python/Default
   CATEGORY:=Languages
   TITLE:=Python $(PYTHON_VERSION) programming language
   URL:=http://www.python.org/
+  MAINTAINER:=Alexandru Ardelean <ardeleanalex@gmail.com>
 endef
 
 define Package/python/Default/description
@@ -45,412 +50,199 @@ define Package/python/Default/description
  the development of higher quality, more maintainable code.
 endef
 
-define Package/python
+define Package/python-base
 $(call Package/python/Default)
-  TITLE+= (full)
-  DEPENDS:=+libpthread +zlib +libffi +python-mini
-endef
-
-define Package/python/description
-$(call Package/python/Default/description)
- .
- This package contains the full Python install.
-endef
-
-define Package/python-mini
-$(call Package/python/Default)
-  TITLE+= (minimal)
+  TITLE:=Python $(PYTHON_VERSION) interpreter
   DEPENDS:=+libpthread +zlib
 endef
 
-define Package/python-mini/description
-$(call Package/python/Default/description)
-  .
-  This package contains only a minimal Python install.
+define Package/python-base/description
+  This package contains only the interpreter and the bare minimum
+  for the interpreter to start.
 endef
 
-define Package/python-doc
+define Package/python-light
 $(call Package/python/Default)
-  TITLE:=Python interactive documentation
-  DEPENDS+=+python-mini
+  TITLE:=Python $(PYTHON_VERSION) light installation
+  DEPENDS:=+python-base +libffi +libbz2
 endef
 
-define Package/python-bzip2
+define Package/python-light/description
+  This package is essentially the python-base package plus
+  a few of the rarely used (and big) libraries stripped out
+  into separate packages.
+endef
+
+# Define newline here, since it's not defined in OpenWRT
+define newline
+
+
+endef
+
+PYTHON_LIB_FILES_DEL:=
+PYTHON_PACKAGES:=
+define PyBasePackage
+  PYTHON_PACKAGES+=$(1)
+  PYTHON_LIB_FILES_DEL+=$(2)
+  define PyPackage/$(1)/filespec
+    $(subst $(space),$(newline),$(foreach lib_file,$(2),+|$(lib_file)))
+  endef
+endef
+
+include ./files/python-package-*.mk
+
+define Package/python
 $(call Package/python/Default)
-  TITLE:=Python support for Bzip2
-  DEPENDS+=+python-mini +libbz2
+  DEPENDS:=+python-light $(foreach package,$(PYTHON_PACKAGES),+$(package))
 endef
 
-define Package/python-expat
-$(call Package/python/Default)
-  TITLE:=Python support for expat
-  DEPENDS+=+python-mini +libexpat
+define Package/python/description
+  This package contains the (almost) full Python install.
+  It's python-light + all other packages.
 endef
 
-define Package/python-gzip
-$(call Package/python/Default)
-  TITLE:=Python support for gzip
-  DEPENDS+=+python-mini
-endef
-
-define Package/python-openssl
-$(call Package/python/Default)
- TITLE:=Python support for OpenSSL
- DEPENDS+=+python-mini +libopenssl
-endef
-
-define Package/python-shutil
-$(call Package/python/Default)
-  TITLE:=Python support for shutil
-  DEPENDS+=+python-mini
-endef
-
-define Package/python-sqlite3
-$(call Package/python/Default)
- TITLE:=Python support for sqlite3
- DEPENDS+=+python-mini +libsqlite3
-endef
-
-define Package/python-gdbm
-$(call Package/python/Default)
- TITLE:=Python support for gdbm
- DEPENDS+=+python-mini +libgdbm
-endef
-
-PY_DISABLED_MODULES:= \
-	readline _curses _curses_panel _tkinter nis
-
-MAKE_FLAGS:=\
-	$(TARGET_CONFIGURE_OPTS) \
-	PYTHON_DISABLE_MODULES="$(PY_DISABLED_MODULES)" \
-	PYTHON_MODULES_INCLUDE="$(STAGING_DIR)/usr/include" \
-	PYTHON_MODULES_LIB="$(STAGING_DIR)/usr/lib" \
-	DESTDIR="$(PKG_INSTALL_DIR)" \
+MAKE_FLAGS+=\
 	CROSS_COMPILE=yes \
-	CFLAGS="$(TARGET_CFLAGS) -fno-inline" \
-	LDFLAGS="$(TARGET_LDFLAGS)" \
 	LD="$(TARGET_CC)" \
-	HOSTPYTHON=./hostpython \
-	HOSTPGEN=./hostpgen
+	PGEN=pgen2
 
-define Build/Configure
-	-$(MAKE) -C $(PKG_BUILD_DIR) distclean
-	(cd $(PKG_BUILD_DIR); autoreconf --force --install || exit 0)
-	# The python executable needs to stay in the rootdir since its location will
-	# be used to compute the path of the config files.
-	$(CP) $(STAGING_DIR_HOST)/bin/pgen $(PKG_BUILD_DIR)/hostpgen
-	$(CP) $(STAGING_DIR_HOST)/bin/python $(PKG_BUILD_DIR)/hostpython
-	$(call Build/Configure/Default, \
-		--sysconfdir=/etc \
-		--disable-shared \
-		--without-cxx-main \
-		--with-threads \
-		--with-system-ffi \
-		ac_cv_lib_readline_readline=no \
-		ac_cv_have_chflags=no \
-		ac_cv_have_lchflags=no \
-		ac_cv_py_format_size_t=no \
-		OPT="$(TARGET_CFLAGS)" \
-	)
+EXTRA_CFLAGS+= \
+	-DNDEBUG -fno-inline
+EXTRA_LDFLAGS+= \
+	-L$(PKG_BUILD_DIR)
+
+ENABLE_IPV6:=
+ifeq ($(CONFIG_IPV6),y)
+	ENABLE_IPV6 += --enable-ipv6
+endif
+
+CONFIGURE_ARGS+= \
+	--sysconfdir=/etc \
+	--enable-shared \
+	--without-cxx-main \
+	--with-threads \
+	--with-system-ffi="$(STAGING_DIR)/usr" \
+	--without-pymalloc \
+	$(ENABLE_IPV6) \
+	CONFIG_SITE="$(PKG_BUILD_DIR)/config.site" \
+	OPT="$(TARGET_CFLAGS)"
+
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	$(CP) ./files/config.site $(PKG_BUILD_DIR)/config.site
 endef
 
 define Build/InstallDev
-	$(INSTALL_DIR) $(2)/bin $(1)/usr/bin $(1)/usr/include $(1)/usr/lib
 	$(INSTALL_DIR) $(STAGING_DIR)/mk/
+	$(INSTALL_DIR) $(1)/usr/include/ $(1)/usr/lib/ $(1)/usr/lib/pkgconfig
+	$(INSTALL_DIR) $(1)/usr/lib/python$(PYTHON_VERSION)/
 	$(INSTALL_DATA) ./files/python-package.mk $(STAGING_DIR)/mk/
 	$(CP) \
 		$(PKG_INSTALL_DIR)/usr/include/python$(PYTHON_VERSION) \
 		$(1)/usr/include/
 	$(CP) \
 		$(STAGING_DIR_HOST)/lib/python$(PYTHON_VERSION) \
-		$(PKG_BUILD_DIR)/libpython$(PYTHON_VERSION).a \
+		$(PKG_INSTALL_DIR)/usr/lib/libpython$(PYTHON_VERSION).so* \
 		$(1)/usr/lib/
+	$(CP) \
+		$(STAGING_DIR_HOST)/lib/pkgconfig/python.pc \
+		$(STAGING_DIR_HOST)/lib/pkgconfig/python2.pc \
+		$(STAGING_DIR_HOST)/lib/pkgconfig/python-$(PYTHON_VERSION).pc \
+		$(1)/usr/lib/pkgconfig
 	$(CP) \
 		$(PKG_INSTALL_DIR)/usr/lib/python$(PYTHON_VERSION)/config \
 		$(1)/usr/lib/python$(PYTHON_VERSION)/
+endef
 
-	$(CP) \
-		$(STAGING_DIR_HOST)/bin/python \
-		$(1)/usr/bin/hostpython
-	(cd $(2)/bin; \
-	ln -sf ../../usr/bin/hostpython python$(PYTHON_VERSION); \
-	ln -sf python$(PYTHON_VERSION) python)
+PYTHON_BASE_LIB_FILES:= \
+	/usr/lib/python$(PYTHON_VERSION)/_abcoll.py \
+	/usr/lib/python$(PYTHON_VERSION)/_sysconfigdata.py \
+	/usr/lib/python$(PYTHON_VERSION)/_weakrefset.py \
+	/usr/lib/python$(PYTHON_VERSION)/abc.py \
+	/usr/lib/python$(PYTHON_VERSION)/copy_reg.py \
+	/usr/lib/python$(PYTHON_VERSION)/genericpath.py \
+	/usr/lib/python$(PYTHON_VERSION)/linecache.py \
+	/usr/lib/python$(PYTHON_VERSION)/posixpath.py \
+	/usr/lib/python$(PYTHON_VERSION)/os.py \
+	/usr/lib/python$(PYTHON_VERSION)/re.py \
+	/usr/lib/python$(PYTHON_VERSION)/site.py \
+	/usr/lib/python$(PYTHON_VERSION)/sre_compile.py \
+	/usr/lib/python$(PYTHON_VERSION)/sre_constants.py \
+	/usr/lib/python$(PYTHON_VERSION)/sre_parse.py \
+	/usr/lib/python$(PYTHON_VERSION)/sysconfig.py \
+	/usr/lib/python$(PYTHON_VERSION)/stat.py \
+	/usr/lib/python$(PYTHON_VERSION)/traceback.py \
+	/usr/lib/python$(PYTHON_VERSION)/types.py \
+	/usr/lib/python$(PYTHON_VERSION)/UserDict.py \
+	/usr/lib/python$(PYTHON_VERSION)/warnings.py
 
-	$(CP) \
-		$(STAGING_DIR_HOST)/bin/python$(PYTHON_VERSION)-config \
-		$(2)/bin/
-	$(SED) 's,^#!.*,#!/usr/bin/env python$(PYTHON_VERSION),g' $(2)/bin/python$(PYTHON_VERSION)-config
+PYTHON_LIB_FILES_DEL+=$(PYTHON_BASE_LIB_FILES)
 
-	(cd $(2)/bin; \
-	ln -sf python$(PYTHON_VERSION)-config python-config;)
+define PyPackage/python-base/filespec
++|/usr/bin/python$(PYTHON_VERSION)
+$(subst $(space),$(newline),$(foreach lib_file,$(PYTHON_BASE_LIB_FILES),+|$(lib_file)))
+endef
+
+define PyPackage/python-light/filespec
++|/usr/lib/python$(PYTHON_VERSION)
+-|/usr/lib/python$(PYTHON_VERSION)/config
+-|/usr/lib/python$(PYTHON_VERSION)/distutils/cygwinccompiler.py
+-|/usr/lib/python$(PYTHON_VERSION)/distutils/command/wininst*
+-|/usr/lib/python$(PYTHON_VERSION)/ensurepip
+-|/usr/lib/python$(PYTHON_VERSION)/idlelib
+-|/usr/lib/python$(PYTHON_VERSION)/lib2to3
+-|/usr/lib/python$(PYTHON_VERSION)/lib-tk
+-|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_testcapi.so
+-|/usr/lib/python$(PYTHON_VERSION)/pdb.doc
+-|/usr/lib/python$(PYTHON_VERSION)/test
+-|/usr/lib/python$(PYTHON_VERSION)/webbrowser.py
+-|/usr/lib/python$(PYTHON_VERSION)/*/test
+-|/usr/lib/python$(PYTHON_VERSION)/*/tests
+-|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/readline.so
+$(subst $(space),$(newline),$(foreach lib_file,$(PYTHON_LIB_FILES_DEL),-|$(lib_file)))
+endef
+
+define PyPackage/python-base/install
+	$(LN) python$(PYTHON_VERSION) $(1)/usr/bin/python
+	$(LN) python$(PYTHON_VERSION) $(1)/usr/bin/python2
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libpython$(PYTHON_VERSION).so* $(1)/usr/lib/
 endef
 
 define PyPackage/python/filespec
-+|/usr/lib/python$(PYTHON_VERSION)
--|/usr/lib/python$(PYTHON_VERSION)/bsddb/test
--|/usr/lib/python$(PYTHON_VERSION)/config
-+|/usr/lib/python$(PYTHON_VERSION)/config/Makefile
--|/usr/lib/python$(PYTHON_VERSION)/ctypes/test
--|/usr/lib/python$(PYTHON_VERSION)/distutils/command/wininst-*.exe
--|/usr/lib/python$(PYTHON_VERSION)/distutils/tests
--|/usr/lib/python$(PYTHON_VERSION)/email/test
--|/usr/lib/python$(PYTHON_VERSION)/idlelib
--|/usr/lib/python$(PYTHON_VERSION)/json/tests
--|/usr/lib/python$(PYTHON_VERSION)/lib-tk
--|/usr/lib/python$(PYTHON_VERSION)/sqlite3
--|/usr/lib/python$(PYTHON_VERSION)/test
--|/usr/lib/python$(PYTHON_VERSION)/lib2to3
--|/usr/lib/python$(PYTHON_VERSION)/lib-old
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/bz2.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/gdbm.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sqlite3.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_ssl.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/pyexpat.so
--|/usr/lib/python$(PYTHON_VERSION)/pydoc_topics.py
--|/usr/lib/python$(PYTHON_VERSION)/pydoc.py
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_ctypes_test.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_testcapi.so
--|/usr/lib/python$(PYTHON_VERSION)/__future__.py
--|/usr/lib/python$(PYTHON_VERSION)/_abcoll.py
--|/usr/lib/python$(PYTHON_VERSION)/abc.py
--|/usr/lib/python$(PYTHON_VERSION)/codecs.py
--|/usr/lib/python$(PYTHON_VERSION)/compileall.py
--|/usr/lib/python$(PYTHON_VERSION)/ConfigParser.py
--|/usr/lib/python$(PYTHON_VERSION)/copy.py
--|/usr/lib/python$(PYTHON_VERSION)/copy_reg.py
--|/usr/lib/python$(PYTHON_VERSION)/dis.py
--|/usr/lib/python$(PYTHON_VERSION)/encodings
--|/usr/lib/python$(PYTHON_VERSION)/fnmatch.py
--|/usr/lib/python$(PYTHON_VERSION)/genericpath.py
--|/usr/lib/python$(PYTHON_VERSION)/getopt.py
--|/usr/lib/python$(PYTHON_VERSION)/glob.py
--|/usr/lib/python$(PYTHON_VERSION)/hashlib.py
--|/usr/lib/python$(PYTHON_VERSION)/inspect.py
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/array.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/binascii.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/cStringIO.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/fcntl.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/grp.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/itertools.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/math.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_md5.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/operator.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_random.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/select.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sha.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sha256.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sha512.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_socket.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/strop.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_struct.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/syslog.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/time.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/unicodedata.so
--|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_weakref.so
--|/usr/lib/python$(PYTHON_VERSION)/linecache.py
--|/usr/lib/python$(PYTHON_VERSION)/md5.py
--|/usr/lib/python$(PYTHON_VERSION)/new.py
--|/usr/lib/python$(PYTHON_VERSION)/opcode.py
--|/usr/lib/python$(PYTHON_VERSION)/optparse.py
--|/usr/lib/python$(PYTHON_VERSION)/os.py
--|/usr/lib/python$(PYTHON_VERSION)/pickle.py
--|/usr/lib/python$(PYTHON_VERSION)/pickle.py
--|/usr/lib/python$(PYTHON_VERSION)/pkgutil.py
--|/usr/lib/python$(PYTHON_VERSION)/popen2.py
--|/usr/lib/python$(PYTHON_VERSION)/posixpath.py
--|/usr/lib/python$(PYTHON_VERSION)/py_compile.py
--|/usr/lib/python$(PYTHON_VERSION)/random.py
--|/usr/lib/python$(PYTHON_VERSION)/repr.py
--|/usr/lib/python$(PYTHON_VERSION)/re.py
--|/usr/lib/python$(PYTHON_VERSION)/sha.py
--|/usr/lib/python$(PYTHON_VERSION)/site.py
--|/usr/lib/python$(PYTHON_VERSION)/socket.py
--|/usr/lib/python$(PYTHON_VERSION)/sre_compile.py
--|/usr/lib/python$(PYTHON_VERSION)/sre_constants.py
--|/usr/lib/python$(PYTHON_VERSION)/sre_parse.py
--|/usr/lib/python$(PYTHON_VERSION)/sre.py
--|/usr/lib/python$(PYTHON_VERSION)/stat.py
--|/usr/lib/python$(PYTHON_VERSION)/StringIO.py
--|/usr/lib/python$(PYTHON_VERSION)/stringprep.py
--|/usr/lib/python$(PYTHON_VERSION)/string.py
--|/usr/lib/python$(PYTHON_VERSION)/struct.py
--|/usr/lib/python$(PYTHON_VERSION)/subprocess.py
--|/usr/lib/python$(PYTHON_VERSION)/tempfile.py
--|/usr/lib/python$(PYTHON_VERSION)/textwrap.py
--|/usr/lib/python$(PYTHON_VERSION)/tokenize.py
--|/usr/lib/python$(PYTHON_VERSION)/token.py
--|/usr/lib/python$(PYTHON_VERSION)/traceback.py
--|/usr/lib/python$(PYTHON_VERSION)/types.py
--|/usr/lib/python$(PYTHON_VERSION)/UserDict.py
--|/usr/lib/python$(PYTHON_VERSION)/warnings.py
--|/usr/lib/python$(PYTHON_VERSION)/weakref.py
+-|$(PYTHON_PKG_DIR)
 endef
 
-define PyPackage/python-mini/filespec
-+|/usr/bin/python$(PYTHON_VERSION)
-+|/usr/lib/python$(PYTHON_VERSION)/__future__.py
-+|/usr/lib/python$(PYTHON_VERSION)/_abcoll.py
-+|/usr/lib/python$(PYTHON_VERSION)/abc.py
-+|/usr/lib/python$(PYTHON_VERSION)/codecs.py
-+|/usr/lib/python$(PYTHON_VERSION)/compileall.py
-+|/usr/lib/python$(PYTHON_VERSION)/ConfigParser.py
-+|/usr/lib/python$(PYTHON_VERSION)/copy.py
-+|/usr/lib/python$(PYTHON_VERSION)/copy_reg.py
-+|/usr/lib/python$(PYTHON_VERSION)/dis.py
-+|/usr/lib/python$(PYTHON_VERSION)/encodings
-+|/usr/lib/python$(PYTHON_VERSION)/fnmatch.py
-+|/usr/lib/python$(PYTHON_VERSION)/genericpath.py
-+|/usr/lib/python$(PYTHON_VERSION)/getopt.py
-+|/usr/lib/python$(PYTHON_VERSION)/glob.py
-+|/usr/lib/python$(PYTHON_VERSION)/hashlib.py
-+|/usr/lib/python$(PYTHON_VERSION)/inspect.py
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/array.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/binascii.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/cStringIO.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/fcntl.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/grp.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/itertools.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/math.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_md5.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/operator.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_random.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/select.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sha.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sha256.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sha512.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_socket.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/strop.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_struct.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/syslog.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/time.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/unicodedata.so
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_weakref.so
-+|/usr/lib/python$(PYTHON_VERSION)/linecache.py
-+|/usr/lib/python$(PYTHON_VERSION)/md5.py
-+|/usr/lib/python$(PYTHON_VERSION)/new.py
-+|/usr/lib/python$(PYTHON_VERSION)/opcode.py
-+|/usr/lib/python$(PYTHON_VERSION)/optparse.py
-+|/usr/lib/python$(PYTHON_VERSION)/os.py
-+|/usr/lib/python$(PYTHON_VERSION)/pickle.py
-+|/usr/lib/python$(PYTHON_VERSION)/pickle.py
-+|/usr/lib/python$(PYTHON_VERSION)/pkgutil.py
-+|/usr/lib/python$(PYTHON_VERSION)/popen2.py
-+|/usr/lib/python$(PYTHON_VERSION)/posixpath.py
-+|/usr/lib/python$(PYTHON_VERSION)/py_compile.py
-+|/usr/lib/python$(PYTHON_VERSION)/random.py
-+|/usr/lib/python$(PYTHON_VERSION)/repr.py
-+|/usr/lib/python$(PYTHON_VERSION)/re.py
-+|/usr/lib/python$(PYTHON_VERSION)/sha.py
-+|/usr/lib/python$(PYTHON_VERSION)/site.py
-+|/usr/lib/python$(PYTHON_VERSION)/socket.py
-+|/usr/lib/python$(PYTHON_VERSION)/sre_compile.py
-+|/usr/lib/python$(PYTHON_VERSION)/sre_constants.py
-+|/usr/lib/python$(PYTHON_VERSION)/sre_parse.py
-+|/usr/lib/python$(PYTHON_VERSION)/sre.py
-+|/usr/lib/python$(PYTHON_VERSION)/stat.py
-+|/usr/lib/python$(PYTHON_VERSION)/StringIO.py
-+|/usr/lib/python$(PYTHON_VERSION)/stringprep.py
-+|/usr/lib/python$(PYTHON_VERSION)/string.py
-+|/usr/lib/python$(PYTHON_VERSION)/struct.py
-+|/usr/lib/python$(PYTHON_VERSION)/subprocess.py
-+|/usr/lib/python$(PYTHON_VERSION)/tempfile.py
-+|/usr/lib/python$(PYTHON_VERSION)/textwrap.py
-+|/usr/lib/python$(PYTHON_VERSION)/tokenize.py
-+|/usr/lib/python$(PYTHON_VERSION)/token.py
-+|/usr/lib/python$(PYTHON_VERSION)/traceback.py
-+|/usr/lib/python$(PYTHON_VERSION)/types.py
-+|/usr/lib/python$(PYTHON_VERSION)/UserDict.py
-+|/usr/lib/python$(PYTHON_VERSION)/warnings.py
-+|/usr/lib/python$(PYTHON_VERSION)/weakref.py
-+|/usr/include/python$(PYTHON_VERSION)/pyconfig.h
-endef
+HOST_CFLAGS+= \
+	-I/usr/include/ncursesw \
+	-I/usr/include/ncurses
 
-define PyPackage/python-mini/install
-	ln -sf python$(PYTHON_VERSION) $(1)/usr/bin/python
-endef
-
-define PyPackage/python-doc/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/pydoc_topics.py
-+|/usr/lib/python$(PYTHON_VERSION)/pydoc.py
-endef
-
-define PyPackage/python-bzip2/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/bz2.so
-endef
-
-define PyPackage/python-expat/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/pyexpat.so
-endef
-
-define PyPackage/python-gzip/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/gzip.py
-endef
-
-define PyPackage/python-openssl/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_ssl.so
-endef
-
-define PyPackage/python-shutil/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/shutil.py
-endef
-
-define PyPackage/python-sqlite3/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/sqlite3
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/_sqlite3.so
-endef
-
-define PyPackage/python-gdbm/filespec
-+|/usr/lib/python$(PYTHON_VERSION)/lib-dynload/gdbm.so
-endef
-
-define Host/Configure
-	-$(MAKE) -C $(HOST_BUILD_DIR) distclean
-	(cd $(HOST_BUILD_DIR); autoreconf --force --install || exit 0)
-	(cd $(HOST_BUILD_DIR); \
-		rm -rf config.cache; \
-		CONFIG_SITE= \
-		OPT="$(HOST_CFLAGS)" \
-		./configure --without-cxx-main --without-threads --prefix=$(STAGING_DIR_HOST); \
-	)
-endef
-
-define Host/Compile
-	$(MAKE) $(HOST_JOBS) -C $(HOST_BUILD_DIR) \
-		python Parser/pgen
-	$(MAKE) $(HOST_JOBS) -C $(HOST_BUILD_DIR) \
-		HOSTPYTHON=$(HOST_BUILD_DIR)/python \
-		sharedmods
-endef
+HOST_CONFIGURE_ARGS+= \
+	--without-cxx-main \
+	--without-pymalloc \
+	--with-threads \
+	--with-system-expat=$(STAGING_DIR_HOST) \
+	--prefix=$(STAGING_DIR_HOST) \
+	--with-ensurepip=upgrade \
+	CONFIG_SITE= \
+	CFLAGS="$(HOST_CFLAGS)"
 
 define Host/Install
 	$(INSTALL_DIR) $(STAGING_DIR_HOST)/bin/
-	$(MAKE) -C $(HOST_BUILD_DIR) \
-		HOSTPYTHON=$(HOST_BUILD_DIR)/python \
-		install
-	$(INSTALL_BIN) $(HOST_BUILD_DIR)/Parser/pgen $(STAGING_DIR_HOST)/bin/
+	$(MAKE) -C $(HOST_BUILD_DIR) install
+	$(INSTALL_BIN) $(HOST_BUILD_DIR)/Parser/pgen $(STAGING_DIR_HOST)/bin/pgen2
 endef
-
 
 $(eval $(call HostBuild))
 
-$(eval $(call PyPackage,python))
-$(eval $(call PyPackage,python-mini))
-$(eval $(call PyPackage,python-doc))
-$(eval $(call PyPackage,python-bzip2))
-$(eval $(call PyPackage,python-expat))
-$(eval $(call PyPackage,python-gzip))
-$(eval $(call PyPackage,python-openssl))
-$(eval $(call PyPackage,python-shutil))
-$(eval $(call PyPackage,python-sqlite3))
-$(eval $(call PyPackage,python-gdbm))
+$(foreach package, $(PYTHON_PACKAGES),  \
+	$(eval $(call PyPackage,$(package))) \
+	$(eval $(call BuildPackage,$(package))) \
+)
 
+$(eval $(call PyPackage,python-base))
+$(eval $(call PyPackage,python-light))
+$(eval $(call PyPackage,python))
+
+$(eval $(call BuildPackage,python-base))
+$(eval $(call BuildPackage,python-light))
 $(eval $(call BuildPackage,python))
-$(eval $(call BuildPackage,python-mini))
-$(eval $(call BuildPackage,python-doc))
-$(eval $(call BuildPackage,python-bzip2))
-$(eval $(call BuildPackage,python-expat))
-$(eval $(call BuildPackage,python-gzip))
-$(eval $(call BuildPackage,python-openssl))
-$(eval $(call BuildPackage,python-shutil))
-$(eval $(call BuildPackage,python-sqlite3))
-$(eval $(call BuildPackage,python-gdbm))
