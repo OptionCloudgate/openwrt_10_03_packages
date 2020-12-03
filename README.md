@@ -1,4 +1,4 @@
-# openwrt_10_03_packages
-this is a fork of git://git.archive.openwrt.org/10.03/packages.git that is already archived and not maintained anymore.
+# CloudGate OpenWrt 10.03 package repository
 
-
+Forked from git://git.archive.openwrt.org/10.03/packages.git.
+This repository contains updated and custom openwrt packages for [**CloudGate**](https://www.option.com)
