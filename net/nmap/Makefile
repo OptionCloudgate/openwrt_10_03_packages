@@ -17,7 +17,7 @@ PKG_VERSION:=5.51
 PKG_RELEASE:=4
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
-PKG_SOURCE_URL:=http://nmap.org/dist/
+PKG_SOURCE_URL:=http://nmap.org/dist-old/
 PKG_MD5SUM:=0b80d2cb92ace5ebba8095a4c2850275
 
 PKG_INSTALL:=1
