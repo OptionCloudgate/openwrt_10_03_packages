@@ -56,8 +56,7 @@ CONFIGURE_ARGS+= \
 	--enable-static \
 	--disable-rpath \
 	--disable-sdltest \
-	--without-tests \
-	--without-png
+	--without-tests
 
 TARGET_LDFLAGS+= -s
 
