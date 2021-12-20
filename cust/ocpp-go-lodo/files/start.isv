@@ -1,0 +1,1 @@
+while true; do /rom/mnt/cust/usr/bin/cs 2>&1 | logger -t ocpp; sleep 5; done
