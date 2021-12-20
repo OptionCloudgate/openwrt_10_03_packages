@@ -29,6 +29,8 @@ COREUTILS_APPLETS:=\
 	touch tr true truncate tsort tty uname unexpand uniq unlink uptime users \
 	vdir wc who whoami yes
 
+FILES_stdbuf := usr/lib/coreutils/libstdbuf.so
+
 define Package/coreutils/Default
   SECTION:=utils
   CATEGORY:=Utilities
@@ -92,6 +94,10 @@ define BuildPlugin
   define Package/$(1)/install
 	$(INSTALL_DIR) $$(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/$(2) $$(1)/usr/bin/
+	$(foreach f,$(FILES_$(2)),
+		$(INSTALL_DIR) $$(1)/$(dir $(f))
+		$(INSTALL_BIN) $(PKG_INSTALL_DIR)/$(f) $$(1)/$(f)
+	)
   endef
 
   $$(eval $$(call BuildPackage,$(1)))
