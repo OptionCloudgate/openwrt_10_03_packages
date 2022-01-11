@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2014 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -8,12 +8,16 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=monit
-PKG_VERSION:=5.2.5
-PKG_RELEASE:=2
+PKG_VERSION:=5.24.0
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=http://mmonit.com/monit/dist
-PKG_MD5SUM:=862fb7939ad6f73fc0cc82096c2309c7
+PKG_HASH:=754d1f0e165e5a26d4639a6a83f44ccf839e381f2622e0946d5302fa1f2d2414
+PKG_MD5SUM:=2a4e0606ed081153195f899fb66955fd
+PKG_SOURCE_URL:=https://mmonit.com/monit/dist
+
+PKG_LICENSE:=AGPL-3.0
+PKG_LICENSE_FILES:=COPYING
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
 PKG_INSTALL:=1
@@ -23,9 +27,10 @@ include $(INCLUDE_DIR)/package.mk
 define Package/monit/Default
   SECTION:=admin
   CATEGORY:=Administration
-  DEPENDS:= +libpthread
+  DEPENDS:= +libpthread +zlib
   TITLE:=System services monitoring utility
-  URL:=http://mmonit.com/monit/
+  URL:=https://mmonit.com/monit/
+  MAINTAINER:=Etienne CHAMPETIER <champetier.etienne@gmail.com>
 endef
 
 define Package/monit/Default/description
@@ -54,6 +59,11 @@ define Package/monit-nossl/description
 $(call Package/monit/Default/description)
 	This package is built without SSL support.
 endef
+
+CONFIGURE_ARGS += \
+	--without-pam \
+	libmonit_cv_setjmp_available=yes \
+	libmonit_cv_vsnprintf_c99_conformant=yes
 
 ifeq ($(BUILD_VARIANT),ssl)
 	CONFIGURE_ARGS += \
