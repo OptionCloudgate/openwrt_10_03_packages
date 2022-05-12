@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=appinc
-PKG_VERSION:=0.2
+PKG_VERSION:=0.3
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/nls.mk
@@ -59,7 +59,7 @@ endef
 define Build/Prepare
 	$(call Build/Prepare/Default)
 	$(CP) files/* $(PKG_BUILD_DIR)/
-	$(if $(CONFIG_$(PKG_NAME)_FILE),pwd && $(CP) $(TOPDIR)/$(CONFIG_$(PKG_NAME)_FILE) $(PKG_BUILD_DIR)/)
+	$(if $(call qstrip,$(CONFIG_$(PKG_NAME)_FILE)),pwd && $(CP) $(TOPDIR)/$(CONFIG_$(PKG_NAME)_FILE) $(PKG_BUILD_DIR)/)
 endef
 
 define Build/Compile
