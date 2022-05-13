@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=appinc
-PKG_VERSION:=0.3
+PKG_VERSION:=0.4
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/nls.mk
@@ -70,7 +70,8 @@ define Build/Compile
 	# unzip the app
 	unzip $(PKG_BUILD_DIR)/*.zip -d $(PKG_BUILD_DIR)
 	# unsquash the config & reinstall in config/config
-	cd $(PKG_BUILD_DIR) && unsquashfs4 config.squashfs
+	# note: when the config is empty unsquashfs will fail so we just make the directory
+	cd $(PKG_BUILD_DIR) && ( unsquashfs4 config.squashfs || mkdir -p $(PKG_BUILD_DIR)/squashfs-root/config )
 	mv $(PKG_BUILD_DIR)/squashfs-root $(PKG_BUILD_DIR)/squashfs-config
 	cp -r $(PKG_BUILD_DIR)/squashfs-config $(PKG_BUILD_DIR)/squashfs-config-full
 	-cd $(PKG_BUILD_DIR)/squashfs-config/config && rm $(subst ",,$(CFGS_IGNORED))
