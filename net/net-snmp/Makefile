@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2017 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -8,13 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=net-snmp
-PKG_VERSION:=5.4.2.1
-PKG_RELEASE:=5
+PKG_VERSION:=5.9.1
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=@SF/net-snmp
-PKG_MD5SUM:=984932520143f0c8bf7b7ce1fc9e1da1
-
+PKG_SOURCE_URL:=@SF/$(PKG_NAME)
+PKG_MD5SUM:=e5ee202dfb15000342354d64f1837d19
 PKG_FIXUP = libtool no-autoreconf
 
 include $(INCLUDE_DIR)/package.mk
@@ -33,12 +32,11 @@ define Package/net-snmp/Default/description
  IPv4 and IPv6.
 endef
 
-
 define Package/libnetsnmp
 $(call Package/net-snmp/Default)
   SECTION:=libs
   CATEGORY:=Libraries
-  DEPENDS:=+libelf
+  DEPENDS:=+libelf +libcrypto +libnl +!TARGET_imx28:libpcre
   TITLE:=Open source SNMP implementation (libraries)
 endef
 
@@ -46,6 +44,18 @@ define Package/libnetsnmp/description
 $(call Package/net-snmp/Default/description)
  .
  This package contains shared libraries, needed by other programs.
+endef
+
+
+define Package/snmp-mibs
+$(call Package/net-snmp/Default)
+  TITLE:=Open source SNMP implementation (MIB-files)
+endef
+
+define Package/snmp-mibs/description
+$(call Package/net-snmp/Default/description)
+ .
+ This package contains SNMP MIB-Files.
 endef
 
 
@@ -58,9 +68,14 @@ endef
 define Package/snmp-utils/description
 $(call Package/net-snmp/Default/description)
  .
- This package contains SNMP client utilities.
+ This package contains SNMP client utilities:
+   - snmpget
+   - snmpset
+   - snmpstatus
+   - snmptest
+   - snmptrap
+   - snmpwalk
 endef
-
 
 define Package/snmpd
 $(call Package/net-snmp/Default)
@@ -74,21 +89,20 @@ $(call Package/net-snmp/Default/description)
  This package contains the SNMP agent, dynamically linked.
 endef
 
-
 define Package/snmpd-static
 $(call Package/net-snmp/Default)
   TITLE:=Open source SNMP implementation (daemon)
-  DEPENDS:=+libelf
+  DEPENDS:=+libelf +libcg +libcrypto +libnl +!TARGET_imx28:libpcre
 endef
 
 define Package/snmpd-static/description
 $(call Package/net-snmp/Default/description)
- .
  This package contains the SNMP agent, statically linked.
 endef
 
 
 SNMP_MIB_MODULES_INCLUDED = \
+	agentx \
 	host/hr_device \
 	host/hr_disk \
 	host/hr_filesys \
@@ -97,8 +111,8 @@ SNMP_MIB_MODULES_INCLUDED = \
 	host/hr_proc \
 	host/hr_storage \
 	host/hr_system \
-	ieee802dot11 \
 	if-mib/ifXTable \
+	ip-mib/inetNetToMediaTable \
 	mibII/at \
 	mibII/icmp \
 	mibII/ifTable \
@@ -108,6 +122,7 @@ SNMP_MIB_MODULES_INCLUDED = \
 	mibII/system_mib \
 	mibII/tcp \
 	mibII/udp \
+	mibII/vacm_conf \
 	mibII/vacm_context \
 	mibII/vacm_vars \
 	snmpv3/snmpEngine \
@@ -117,7 +132,6 @@ SNMP_MIB_MODULES_INCLUDED = \
 	snmpv3/usmUser \
 	tunnel \
 	ucd-snmp/disk \
-	ucd-snmp/dlmod \
 	ucd-snmp/extensible \
 	ucd-snmp/loadave \
 	ucd-snmp/memory \
@@ -129,12 +143,10 @@ SNMP_MIB_MODULES_INCLUDED = \
 
 SNMP_MIB_MODULES_EXCLUDED = \
 	agent_mibs \
-	agentx \
-	disman/event \
-	disman/schedule \
 	hardware \
 	host \
 	if-mib \
+	ip-mib \
 	mibII \
 	notification \
 	notification-log-mib \
@@ -144,10 +156,19 @@ SNMP_MIB_MODULES_EXCLUDED = \
 	ucd_snmp \
 	udp-mib \
 	utilities \
+	ieee802dot11 \
+	disman \
 
-SNMP_TRANSPORTS_INCLUDED = Callback UDP
+# These two need to be enabled if disman is required
+# disman/event \
+# disman/schedule \
+# future optimizations
+# --disable-privacy \
+# --disable-md5 \
 
-SNMP_TRANSPORTS_EXCLUDED = TCP TCPIPv6 Unix
+SNMP_TRANSPORTS_INCLUDED = Callback UDP Unix
+
+SNMP_TRANSPORTS_EXCLUDED = TCP TCPIPv6
 
 TARGET_CFLAGS += $(FPIC)
 
@@ -159,22 +180,28 @@ CONFIGURE_ARGS += \
 	--with-logfile=/var/log/snmpd.log \
 	--with-persistent-directory=/usr/lib/snmp/ \
 	--with-default-snmp-version=1 \
-	--with-sys-contact=root@localhost \
+	--with-sys-contact=admin@localhost \
 	--with-sys-location=Unknown \
 	--enable-applications \
 	--disable-debugging \
 	--disable-manuals \
 	--disable-mibs \
+	--disable-mib-loading \
+	--enable-agentx-dom-sock-only \
 	--disable-scripts \
 	--with-out-mib-modules="$(SNMP_MIB_MODULES_EXCLUDED)" \
 	--with-mib-modules="$(SNMP_MIB_MODULES_INCLUDED)" \
 	--with-out-transports="$(SNMP_TRANSPORTS_EXCLUDED)" \
 	--with-transports="$(SNMP_TRANSPORTS_INCLUDED)" \
-	--without-openssl \
+	--with-openssl \
 	--without-libwrap \
+	--without-mysql \
 	--without-rpm \
 	--without-zlib \
 	 $(call autoconf_bool,CONFIG_IPV6,ipv6) \
+	--disable-perl-cc-checks \
+	--disable-embedded-perl \
+	--without-perl-modules
 
 ifeq ($(CONFIG_IPV6),y)
 SNMP_TRANSPORTS_INCLUDED+= UDPIPv6
@@ -203,6 +230,8 @@ define Build/InstallDev
 	$(INSTALL_DIR) $(2)/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/net-snmp-config $(2)/bin/
 	$(SED) 's,=/usr,=$(STAGING_DIR)/usr,g' $(2)/bin/net-snmp-config
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/bin
+	$(LN) $(STAGING_DIR)/host/bin/net-snmp-config $(STAGING_DIR)/usr/bin/
 
 	$(INSTALL_DIR) $(1)/usr/include
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/net-snmp $(1)/usr/include/
@@ -224,7 +253,7 @@ define Package/snmpd/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/snmpd.conf $(1)/etc/config/snmpd
 	$(INSTALL_DIR) $(1)/etc/snmp
-	ln -sf /var/run/snmpd.conf $(1)/etc/snmp/
+	$(LN) /var/run/snmpd.conf $(1)/etc/snmp/
 	$(INSTALL_DIR) $(1)/etc/default
 	$(INSTALL_DATA) ./files/snmpd.default $(1)/etc/default/snmpd
 	$(INSTALL_DIR) $(1)/etc/init.d
@@ -242,7 +271,7 @@ define Package/snmpd-static/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/snmpd.conf $(1)/etc/config/snmpd
 	$(INSTALL_DIR) $(1)/etc/snmp
-	ln -sf /var/run/snmpd.conf $(1)/etc/snmp/
+	$(LN) /var/run/snmpd.conf $(1)/etc/snmp/
 	$(INSTALL_DIR) $(1)/etc/default
 	$(INSTALL_DATA) ./files/snmpd.default $(1)/etc/default/snmpd
 	$(INSTALL_DIR) $(1)/etc/init.d
