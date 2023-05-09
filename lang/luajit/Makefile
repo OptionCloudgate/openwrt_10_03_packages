@@ -12,8 +12,8 @@ PKG_NAME:=LuaJIT
 
 PKG_RELEASE:=1
 #PKG_REV used in pc luvi script
-PKG_REV2_1:=1e66d0f9e6698fdee672c40a9a5b4159c9254091
-PKG_REV2_0:=f47c864b0186fc92a2264e68e1151d0d2b24969e
+PKG_REV2_1:=224129a8e64bfa219d35cd03055bf03952f167f6
+PKG_REV2_0:=c7db8255e1eb59f933fac7bc9322f0e4f8ddc6e6
 
 ifeq ($(CONFIG_LUAJIT_TWO_ONE),y)
 PKG_MAJOR_VERSION:=2
@@ -156,8 +156,6 @@ endef
 define Package/luajit/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libluajit*so* $(1)/usr/lib/
-	-ln -s libluajit-5.1.so.$(PKG_LIB_VERSION) $(1)/usr/lib/libluajit-5.1.so.2
-	-ln -s libluajit-5.1.so.$(PKG_LIB_VERSION) $(1)/usr/lib/libluajit-5.1.so
 endef
 
 $(eval $(call HostBuild))
