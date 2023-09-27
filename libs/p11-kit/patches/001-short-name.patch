@@ -1,0 +1,26 @@
+Index: p11-kit-0.24.1/common/compat.c
+===================================================================
+--- p11-kit-0.24.1.orig/common/compat.c
++++ p11-kit-0.24.1/common/compat.c
+@@ -107,8 +107,8 @@
+ 
+ #ifdef OS_UNIX
+ 
+-#if defined (HAVE_PROGRAM_INVOCATION_SHORT_NAME) && !HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME
+-extern char *program_invocation_short_name;
++#if defined (HAVE_PROGRAM_INVOCATION_SHORT_NAME) && (HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME == 1)
++extern const char *program_invocation_short_name;
+ #endif
+ 
+ #if defined (HAVE___PROGNAME) && !HAVE_DECL___PROGNAME
+@@ -139,8 +139,8 @@ getprogname (void)
+ 	p = strrchr (name ? name : "", '/');
+ 	if (p != NULL)
+ 		name = p + 1;
+-#elif defined (HAVE_PROGRAM_INVOCATION_SHORT_NAME)
+-#ifdef __linux__
++#elif defined (HAVE_PROGRAM_INVOCATION_SHORT_NAME) && (HAVE_PROGRAM_INVOCATION_SHORT_NAME == 1)
++#if 0
+ 	name = program_invocation_name;
+ 	assert (name);
+ 	if (*name == '/') {
