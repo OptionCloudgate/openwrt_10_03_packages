@@ -23,7 +23,7 @@ GO_PKG_BUILD_PKG:=github.com/brocaar/chirpstack-gateway-bridge/cmd/chirpstack-ga
 
 include $(INCLUDE_DIR)/package.mk
 # golang-package.mk should be relocate regarding the env
-include $(TOPDIR)/package/lang/golang/golang-package.mk
+include ../../lang/golang/golang-package.mk
 
 define Package/chirpstack-gateway-bridge
   SECTION:=net
