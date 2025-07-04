@@ -1,11 +1,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=chirpstack-gateway-bridge
-PKG_VERSION:=4.0.10
+PKG_VERSION:=4.0.11
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/chirpstack/chirpstack-gateway-bridge.git
+PKG_MD5SUM:=3c0139a76c2974bd5a02ed2ba53c2ae2
+
+PKG_LICENSE:=MIT
+PKG_CPE_ID:=cpe:/a:chirpstack:chirpstack_gateway_bridge
 
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
